@@ -1,0 +1,55 @@
+This folder contains the workflow and individual scripts to collect a database
+of body wave arrivals, pre-process the data and then calculate differential
+travel times and differential attenuation. The approach is modularised but along
+the way you will create event-based structures (evdata.mat) which are handy for
+doing the calculations and array-based processing.
+
+There are a bunch of necessary sub-functions in the directory "matguts"; be sure
+this is on your matlab path. There may be some sub-functions missing that were
+somewhere else on my path that I have not copied over to matguts -- if anything
+fails as you go along, first check whether it is because you are missing a
+function, and email me for the file (email below).
+
+Some things to be aware of: 
+- evdata_#_* comprise all the scripts to downloadand process the data. Some of
+  them will not be hugely relevant for you, as they were designed with OBS data in 
+  mind. However, if you have any known, mis-aligned channels, the rotation script will
+  sort this out for you. 
+- You need to have station and event details in an Antelope database. The scripts
+  will use this information to request IRIS data for download and then for all subsequent 
+  processing that requires station location/elevation etc.. In principle, the choice to 
+  house this information in Antelope database tables is totally arbitrary - if you have
+  a preferred structure/system for housing station and event details, it should be a 
+  pretty straightforward process to modify the scripts in this package accordingly; there
+  are generally a few lines at the beginning of the file when event lat,lon,mag,depth,
+  time are read in, and a few lines where station lat,lon,elev,ondate,offdate,network, 
+  and sometimes channel azimuth information are read in. Just modify these for your 
+  purposes. 
+- calc_#_* comprise all the scripts to process the data.
+  a) The first of these is to calculate differential travel times. You need to do this 
+     before any of the other processing, as some scripts use the diff_TT to align the 
+     traces on the body wave arrival for calculating spectra.
+  b) The second script calculates spectral ratios using the Thomson multi-taper method. 
+     This script also does handy things like estimate signal-to-noise ratio, which is used
+     later as a quality control, and calculates the maximum frequency at which signal
+     exceeds pre-event noise (you shouldn't use any higher f than this for the estimation 
+     of t-star. Finally, this script does the 'traditional' calculation of differential 
+     t-star by slope fitting amplitudespectral ratios (and assuming alpha=0; alpha is the 
+     frequency dependence of Q). We like to think this method is superseded by our 
+     preferred method of joint fitting of amplitude and phase spectra from the comb of 
+     filters.
+  c) Finally, the third script runs combs of filters over the data to obtain relative 
+     amplitude and phase spectra, and then fits these with curves (for any chosen alpha
+     between 0 and 0.9 [you can go above this range, but don't]) to obtain pair-wise 
+     differential tstar, and then solves a constrained least squares problem to get 
+     best fitting station Dtstar for each event.
+- I've also included a couple of example plotting scripts in this package to give you a
+  feel for how the results structures work.
+
+Good luck, and contact me if you have any questions!
+
+Zach Eilon, 08/2016
+eilon@geol.ucsb.edu
+  
+  
+ 

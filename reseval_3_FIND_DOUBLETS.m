@@ -1,0 +1,225 @@
+%% Evaluate all stations and see what has results where
+clear all
+
+phase = 'P';
+component = 'Z';
+dtype = 'dtstar';
+method = 'fAxP'; 
+
+ifsave = true;
+
+%% conditions
+minNstas = 10; % skip events if not this many stas recording it
+maxDist = 5; % for event to be considered a duplicate
+maxMomentdiff = 10; % for event to be considered a duplicate
+maxTimediff = 300; % units of days; to avoid wholly different arrays recording
+maxDepdiff = 40; % units of days; to avoid wholly different arrays recording
+
+% project details
+dbname = 'EARdb';
+dbdir = '/Users/zeilon/Dropbox/Work/EARdb/'; % include final slash
+figdir = ['PLOTTING/figs/doublets/'];
+
+if ~exist([dbdir,figdir],'dir'), mkdir([dbdir,figdir]); end
+%% Preliminaries
+wd = pwd;
+addpath('matguts')
+cd(dbdir);
+run([dbdir,dbname,'_startup.m']);
+map_parameters;
+
+PorS = find(strcmp({'P','S'},phase(end)));
+tstlim = PorS*0.5*[-1 1];
+cmap = cmap_makecustom( [0 0 1]+0.1, [1 0 0]+.1, 0.2) -0.1;
+
+
+%% =================================================================== %%
+%% ==========================  GET TO WORK  ========================== %%
+%% =================================================================== %%
+
+% event details
+load([infodir,'/events'],'evinfo'); 
+% station details
+load([infodir,'/stations'],'stainfo');
+
+% load results
+if strcmp('dT',dtype), dmeth = dtype; else dmeth = [dtype,method];end
+r = load([resdir,'all_',dmeth,'_',phase,'_',component,'.mat']); % xcorr differential TT
+rfn = fieldnames(r);
+res = r.(rfn{1});
+
+%% Establish orids with results
+resorids = find(sum(~isnan(res),1)>=minNstas);
+
+%% Start looping through results, looking for duplicates
+dupgrp = {};
+for ie = 1:length(resorids)
+    dups = [];
+    orid = resorids(ie);
+    for ie2 = (ie+1):length(resorids)
+        orid2 = resorids(ie2);
+        % mag test
+        if abs(evinfo.evmags(orid)-evinfo.evmags(orid2)) > log10(maxMomentdiff), continue; end
+        % time test
+        if abs(evinfo.evtimes(orid)-evinfo.evtimes(orid2)) > maxTimediff, continue; end
+        if abs(evinfo.evtimes(orid)-evinfo.evtimes(orid2))*24*3600<600, continue; end % not within 10 mins of each other
+        % depth test
+        if abs(evinfo.edeps(orid)-evinfo.edeps(orid2)) > maxDepdiff, continue; end
+        
+        % location test
+        dd = distance(evinfo.elats(orid),evinfo.elons(orid),evinfo.elats(orid2),evinfo.elons(orid2));
+        if dd > maxDist, continue; end
+        
+        % at this point, it's a double!
+        dups = [dups;orid2];
+    end
+    if ~isempty(dups)
+        dupgrp{length(dupgrp)+1} = [orid;dups];
+%         resorids = setdiff(resorids,[orid;dups]);
+    end
+end
+
+% now process and collate groups
+eog = false;
+while ~eog
+    for ig1 = 1:length(dupgrp)
+        for ig2 = ig1+1:length(dupgrp)
+            if any(intersect(dupgrp{ig1},dupgrp{ig2}))
+                dupgrp{ig1} = union(dupgrp{ig1},dupgrp{ig2});
+                dupgrp(ig2) = [];
+                break
+            end
+        end
+        if ig2 ~= length(dupgrp); break; end % didn't finish
+    end
+    if (ig1==length(dupgrp)), eog = true; end
+end
+
+%% Now run through the duplicate groups, comparing measurements
+for id = 1:length(dupgrp)
+    Nevts = length(dupgrp{id});
+    % find first orid's stations. Then start taking intersections with
+    % stations from other orids
+    orid = dupgrp{id}(1);
+    sinds = find(~isnan(res(:,orid)));
+    for ie = 2:Nevts
+        orid = dupgrp{id}(ie);
+        sinds = intersect(sinds,find(~isnan(res(:,orid))));
+    end
+    
+    if length(sinds)<4 , continue; end % don't bother if not enough shared stations
+
+    % distance,az
+    [gcarc,seaz] = distance(mean(stainfo.slats(sinds)),    mean(stainfo.slons(sinds)), ...
+                            mean(evinfo.elats(dupgrp{id})),mean(evinfo.elons(dupgrp{id})));
+    incaz = mod(seaz+180,360);
+                            
+    
+    dval = demean(res(sinds,dupgrp{id}));
+
+    scale = max([1,max(dval,[],'all')]);
+    
+    %% plot 
+    %% direct comparison 
+    figure(76); clf
+    h = plot(dval(:,1),dval(:,2:end),'.','markersize',40);
+    hold on
+    plot(scale*[-1;1],scale*[-1;1],'r--')
+    set(gca,'xlim',scale*[-1 1],'ylim',scale*[-1 1])
+    axis equal
+
+    % information about events
+
+    CC = corr(dval);
+
+    text(-0.8*scale, 0.9*scale,'Corr','fontsize',18)
+    for ii = 2:Nevts
+    text(-0.8*scale, (1-0.15*ii)*scale,sprintf('%.2f  ',CC(1,ii)),'fontsize',18,'color',get(h(ii-1),'color'))
+    end
+
+    %% Map
+    figure(77), clf;
+
+    if Nevts>2, set(gcf,'pos',[1 383 1512 437])
+    else, set(gcf,'pos',[458 374 1055 446])
+    end
+
+    for ie = 1:Nevts
+        orid = dupgrp{id}(ie);
+
+        subplot(1,Nevts,ie), 
+
+        hold on
+
+        % country borders
+        for k=1:length(pol_bounds.ncst)
+            if pol_bounds.inmap(k)
+                plot(pol_bounds.ncst{k}(:,1),pol_bounds.ncst{k}(:,2),':','LineWidth',1.5,'color',[0.7 0.5 0.7]); 
+            end
+        end
+        plot(coast.ncst(:,1),coast.ncst(:,2),'k','LineWidth',2)
+        %volcanoes
+        okvol = (volcanoes.vlon <= lonlims(2)) & (volcanoes.vlon >= lonlims(1)) & (volcanoes.vlat <= latlims(2)) & (volcanoes.vlat >= latlims(1));
+        plot(volcanoes.vlon(okvol),volcanoes.vlat(okvol),'^','markeredgecolor','k','markerfacecolor','r','markersize',6)
+        % rift
+        plot(rftv(1).X,rftv(1).Y,'--r')
+
+        scatter(stainfo.slons(sinds),stainfo.slats(sinds),100,dval(:,ie),'filled','MarkerEdgeColor','k')
+        colormap(cmap), caxis(tstlim);
+
+        % plot incoming azimuth, dist
+        d2or = 0.95*min([diff(latlims),diff(lonlims)])/2;
+        alen = d2or*0.25;
+        arrow0 = reckon(mean(latlims),mean(lonlims),d2or,seaz); % arrow base
+        arrow1 = reckon(mean(latlims),mean(lonlims),d2or-alen,seaz); % arrow tip
+        arrowa = reckon(arrow1(1),arrow1(2),0.2*alen,seaz+25); % one end of arrow prong
+        arrowb = reckon(arrow1(1),arrow1(2),0.2*alen,seaz-25); % other end of arrow prong
+        ARW = [arrow0;arrow1;arrowa;arrowb];
+        plot(ARW([1,2,3,2,4],2),ARW([1,2,3,2,4],1),'k','linewidth',3)
+        
+
+
+        xlim(lonlims);
+        ylim(latlims);
+        set(gca,'box','on','linewidth',2)
+
+        title(sprintf('\nOrid %.0f,  M%.1f,  %s, $\\Delta$ = %.1f$^{\\circ}$ AZ = %.1f$^{\\circ}$ \n',...
+        orid,evinfo.evmags(orid),evinfo.datestamp(orid,1:end),gcarc,seaz),'interpreter','latex')
+
+    end
+
+    if ifsave
+        ofile = sprintf('%s_%s%s_%02.0f',dmeth,phase,component,id);
+        save2pdf(77,ofile,figdir)
+    end
+
+    
+end
+        % 
+
+
+       return
+
+
+%% summary table
+%header
+fprintf(' STA   NWK    LAT    LON    Nres')
+for ii=1:3
+for ip = 1:length(phases)
+fprintf('  %s_%s',dtype{ii},phases{ip});
+end
+end
+fprintf('\n\n');
+
+for is = 1:evinfo.nstas
+    if evinfo.Nres(is)==0; continue; end
+    
+    fprintf('%4s  %2s %8.4f %9.4f  %3u',evinfo.stas{is},evinfo.nwk{is},evinfo.slats(is),evinfo.slons(is),evinfo.Nres(is))
+    for ii=1:3
+    for ip = 1:length(phases)
+        fprintf('   %3u',evinfo.(['Nres_',phases{ip},components{ip},'_N',dtype{ii}])(is));
+    end
+    end
+    fprintf('\n');
+    
+end
