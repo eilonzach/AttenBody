@@ -25,9 +25,11 @@ dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
 %% parameters
 phase = 'SKS';
 component = ['R']; %'Z', 'R', or 'T'
+phase = 'P';
+component = ['Z']; %'Z', 'R', or 'T'
 
 overwrite  = false; % should be "true" if ifplotonly 
-ifsave     = true;
+ifsave     = false;
 ifplot     = 0; % 2 for the individual combs...
 ifplotonly = false;
 
@@ -35,14 +37,24 @@ ifplotonly = false;
 arrT_pred_or_abs = 'abs'; % option to align traces by predicted (tauP) time or the absolute measured diffTT time
 filtfs = 1./[40 0.5]; % [flo fhi] = 1./[Tmax Tmin] in sec
 taperx = 0.1;
-datwind = [-160 165]; % window of data in eqar structure
+datwind = [-160 160]; % window of data in eqar structure
 % note, inside fAxPspectra will pad this so as to not lose data due to taper
 specwind = [-10 10]; % [-prex postx] both values are relative to arrival (prex is thus +ive)
 snrmin = 4;
 
-firstorid = 1; % 412 is a good one for the amp2phiwt working, 2200
+%% EVT limits
+firstev = 1291; 
+% time bounds for events to consider - ignore before startdate, or after enddate
+startdate = '2000-03-01'; % format 'YYYY-MM-DD' % FOR EARdb new stations
+% startdate = '1000-01-01'; % format 'YYYY-MM-DD' % for all
+enddate   = '2025-01-01'; % format 'YYYY-MM-DD'
+% magnitude bounds for events to consider - INCLUDE the limiting values
+minmag = 6.2; % in Mw, set to 5 for all
+maxmag = 7.2; % in Mw, set to 9 for all
+% NOTE!! Also distance bounds for every phase, defined in the 
+% "GRAB DATA IN RIGHT FORMAT" section below
 
-% fAxP parms
+%% fAxP parms
 parms.fAxP.ifunwrap = 0;
 
 parms.wind.pretime = -datwind(1); % seconds before the predicted arrival that the data time series starts. Should be a positive number
@@ -95,7 +107,7 @@ load([infodir,'/events'],'evinfo');
 load([infodir,'/stations'],'stainfo');
 
 
-for ie = firstorid:evinfo.norids %evinfo.norids % 335:norids % loop on orids
+for ie = firstev:evinfo.norids %evinfo.norids % 335:norids % loop on orids
 %     if  mags(ie)<6.9, continue, end
     tic
     orid = evinfo.orids(ie);
@@ -104,7 +116,13 @@ for ie = firstorid:evinfo.norids %evinfo.norids % 335:norids % loop on orids
     evdir = [num2str(orid,'%03d'),'_',evinfo.datestamp(ie,:),'/'];
     datinfofile = [data_eqar_dir,evdir,'_datinfo_',phase];
     arfile      = [data_eqar_dir,evdir,'_EQAR_',phase,'_',component];
-   
+
+    % ignore outside date or magnitude bounds
+    if  evinfo.evtimes(ie) < datenum(startdate) || evinfo.evtimes(ie) > datenum(enddate) ...
+     || evinfo.evmags(ie) < minmag || evinfo.evmags(ie) > maxmag
+        continue; 
+    end
+
     % check files exist
     if ~exist([datinfofile,'.mat'],'file'), fprintf('No station mat files for this event\n');continue, end
     if ~exist([arfile,'.mat'],'file'), fprintf('No arfile for this event + phase\n');continue, end
