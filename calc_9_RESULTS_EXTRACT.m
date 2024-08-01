@@ -14,13 +14,21 @@ clear all
 % project details
 dbname = 'FRES_PILOT';
 dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
+%% Preliminaries
+wd = pwd;
+addpath('matguts')
+cd(dbdir);
+run([dbdir,dbname,'_startup.m']);
+spd = 24*3600;
 
 
 %% Loop over all phases, for efficiency
-phases = {'P','S','SKS','PKS'};
-components = {'Z','T','R','R'};
-phases = {'SKS'};
-components = {'R'};
+phases = {'P','S','SKS','PKS','PP'};
+components = {'Z','T','R','R','Z'};
+% phases = {'PP'};
+% components = {'Z'};
+
+methods = {'dT','specR','fAxP'}; % choose from among {'dT','specR','comb','fAxP'};
 
 for idata = 1:length(phases)
     phase = phases{idata};
@@ -52,14 +60,22 @@ load([infodir,'/events'],'evinfo');
 % station details
 load([infodir,'/stations'],'stainfo');
 
-all_dT     = nan(stainfo.nstas,evinfo.norids);
-all_dtstar_specR = nan(stainfo.nstas,evinfo.norids);
-all_dT_comb = nan(stainfo.nstas,evinfo.norids);
-all_dtstar_comb = nan(stainfo.nstas,evinfo.norids);
-all_dtstar_comb_std = nan(stainfo.nstas,evinfo.norids);
-all_dT_fAxP = nan(stainfo.nstas,evinfo.norids);
-all_dtstar_fAxP = nan(stainfo.nstas,evinfo.norids);
-all_dtstar_fAxP_std = nan(stainfo.nstas,evinfo.norids);
+if any(strcmp(methods,'dT'))
+    all_dT     = nan(stainfo.nstas,evinfo.norids);
+end
+if any(strcmp(methods,'specR'))
+    all_dtstar_specR = nan(stainfo.nstas,evinfo.norids);
+end
+if any(strcmp(methods,'comb'))
+    all_dT_comb = nan(stainfo.nstas,evinfo.norids);
+    all_dtstar_comb = nan(stainfo.nstas,evinfo.norids);
+    all_dtstar_comb_std = nan(stainfo.nstas,evinfo.norids);
+end
+if any(strcmp(methods,'fAxP'))
+    all_dT_fAxP = nan(stainfo.nstas,evinfo.norids);
+    all_dtstar_fAxP = nan(stainfo.nstas,evinfo.norids);
+    all_dtstar_fAxP_std = nan(stainfo.nstas,evinfo.norids);
+end
 
 for ie = 1:evinfo.norids  % loop on orids
     if  evinfo.evmags(ie)<mag_min, continue, end
@@ -92,6 +108,7 @@ for ie = 1:evinfo.norids  % loop on orids
     if all([eqar.pred_arrT]==0), fprintf('No %s arrivals for this event\n',phase), continue, end
     
 %% parse dT data
+if any(strcmp(methods,'dT'))
     if ~isfield(eqar,'dT'), fprintf('   NEED TO XCOR\n',phase), continue, end
       
     for is = 1:stainfo.nstas
@@ -101,15 +118,21 @@ for ie = 1:evinfo.norids  % loop on orids
         if (isempty(eqar(ise).dT)) || isnan(eqar(ise).dT), continue, end
         all_dT(is,ie) = eqar(ise).dT;
     end
+end
         
-    %% parse dtstar - mtm spec ratio data
+%% parse dtstar - mtm spec ratio data
+if any(strcmp(methods,'specR'))
     if ~isfield(eqar,'dtstar_specR')
         if ~isfield(eqar,'dtstar')
             fprintf('   NEED TO CALC DTSTAR\n',phase)
             continue, 
         else
             warning('Seems to be calling specR dtstar just "dtstar"')
-            eqar.dtstar_specR = eqar.dtstar;
+            try
+                eqar.dtstar_specR = eqar.dtstar;
+            catch
+                eqar = dealto(eqar,'dtstar_specR',[eqar.dtstar]);
+            end
         end
     end
 
@@ -120,8 +143,10 @@ for ie = 1:evinfo.norids  % loop on orids
         if isempty(eqar(ise).dtstar_specR), continue, end
         all_dtstar_specR(is,ie) = eqar(ise).dtstar_specR;
     end
+end
     
-    %% parse dtstar_COMB data
+%% parse dtstar_COMB data
+if any(strcmp(methods,'comb'))
     nocomb = false;
     if ~isfield(eqar,'dtstar_comb'), fprintf('   NEED TO CALC DTSTAR w COMB\n',phase), nocomb = true; end
     if ~isfield(eqar,'dtstarstd_comb'), fprintf('   NEED TO REDO COMB FOR THIS EVT\n',phase), nocomb = true; end
@@ -138,8 +163,10 @@ for ie = 1:evinfo.norids  % loop on orids
             all_dtstar_comb_std(is,ie) = eqar(ise).dtstarstd_comb;
         end
     end
+end
 
-    %% parse dtstar_fAxP data
+%% parse dtstar_fAxP data
+if any(strcmp(methods,'fAxP'))
     nofaxp = false;
     if ~isfield(eqar,'dtstar_fAxP'), fprintf('   NEED TO CALC DTSTAR w fAxP\n',phase), nofaxp = true; end
     if ~isfield(eqar,'dtstarstd_fAxP'), fprintf('   NEED TO REDO fAxP FOR THIS EVT\n',phase), nofaxp = true; end
@@ -156,29 +183,53 @@ for ie = 1:evinfo.norids  % loop on orids
             all_dtstar_fAxP_std(is,ie) = eqar(ise).dtstarstd_fAxP;
         end
     end
+end
     
 end % loop on orids
 
 %% take off means of differential values
-all_dT = all_dT - ones(stainfo.nstas,1)*nanmean(all_dT);
-all_dtstar_specR = all_dtstar_specR - ones(stainfo.nstas,1)*nanmean(all_dtstar_specR);
-all_dtstar_comb = all_dtstar_comb - ones(stainfo.nstas,1)*nanmean(all_dtstar_comb);
-all_dtstar_fAxP = all_dtstar_fAxP - ones(stainfo.nstas,1)*nanmean(all_dtstar_fAxP);
+if any(strcmp(methods,'dT'))
+    all_dT = all_dT - ones(stainfo.nstas,1)*nanmean(all_dT);
+end
+if any(strcmp(methods,'specR'))
+    all_dtstar_specR = all_dtstar_specR - ones(stainfo.nstas,1)*nanmean(all_dtstar_specR);
+end
+if any(strcmp(methods,'comb'))
+    all_dtstar_comb = all_dtstar_comb - ones(stainfo.nstas,1)*nanmean(all_dtstar_comb);
+end
+if any(strcmp(methods,'fAxP'))
+    all_dtstar_fAxP = all_dtstar_fAxP - ones(stainfo.nstas,1)*nanmean(all_dtstar_fAxP);
+end
 
 %% save
 fprintf('SAVING ALL RESULT FILES to %s\n',resdir)
-save([resdir,'all_dT_',phase,'_',component],'all_dT') % xcorr differential TT
-save([resdir,'all_dtstarspecR_',phase,'_',component],'all_dtstar_specR') % mtm specR differential tstar
-save([resdir,'all_dTcomb_',phase,'_',component],'all_dT_comb') % IGNORE THIS ONE - NOT GOOD! comb amp+phase spec differential TT
-save([resdir,'all_dtstarcomb_',phase,'_',component],'all_dtstar_comb') % comb amp+phase spec differential tstar
-save([resdir,'all_dtstarcombstd_',phase,'_',component],'all_dtstar_comb_std') % comb amp+phase spec differential tstar
-save([resdir,'all_dTfAxP_',phase,'_',component],'all_dT_fAxP') % IGNORE THIS ONE - NOT GOOD! fAxP amp+phase spec differential TT
-save([resdir,'all_dtstarfAxP_',phase,'_',component],'all_dtstar_fAxP') % comb amp+phase spec differential tstar
-save([resdir,'all_dtstarfAxPstd_',phase,'_',component],'all_dtstar_fAxP_std') % comb amp+phase spec differential tstar
 
+% dT
+if any(strcmp(methods,'dT'))
+    save([resdir,'all_dT_',phase,'_',component],'all_dT') % xcorr differential TT
+end
+
+% dtstar-specR
+if any(strcmp(methods,'specR'))
+    save([resdir,'all_dtstarspecR_',phase,'_',component],'all_dtstar_specR') % mtm specR differential tstar
+end
+
+% dtstar-comb
+if any(strcmp(methods,'comb'))
+    % save([resdir,'all_dTcomb_',phase,'_',component],'all_dT_comb') % IGNORE THIS ONE - NOT GOOD! comb amp+phase spec differential TT
+    save([resdir,'all_dtstarcomb_',phase,'_',component],'all_dtstar_comb') % comb amp+phase spec differential tstar
+    save([resdir,'all_dtstarcombstd_',phase,'_',component],'all_dtstar_comb_std') % comb amp+phase spec differential tstar
+end
+% dtstar-fAxP
+
+if any(strcmp(methods,'fAxP'))
+    % save([resdir,'all_dTfAxP_',phase,'_',component],'all_dT_fAxP') % IGNORE THIS ONE - NOT GOOD! fAxP amp+phase spec differential TT
+    save([resdir,'all_dtstarfAxP_',phase,'_',component],'all_dtstar_fAxP') % comb amp+phase spec differential tstar
+    save([resdir,'all_dtstarfAxPstd_',phase,'_',component],'all_dtstar_fAxP_std') % comb amp+phase spec differential tstar
+end
 cd(wd);
 
-end
+end % loop on phases
     
     
     
