@@ -42,12 +42,6 @@ event_dtime_skip = 60; % in seconds, skip event if less than this time from prev
 
 
 
-%% Preliminaries
-wd = pwd;
-addpath('matguts')
-cd(dbdir);
-run([dbdir,dbname,'_startup.m']);
-spd = 24*3600;
 
 % resdir = '/Volumes/LaCie/Granite_EastAfrica/EARdb/RESULTS_p2a_5/';
 
