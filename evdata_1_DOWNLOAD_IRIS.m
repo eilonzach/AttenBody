@@ -17,18 +17,23 @@
 clear 
 
 % % project details
-% dbname = 'EARdb';
-% dbdir = '/Users/zeilon/Work/EastAfrica/EARdb/'; % include final slash
+dbname = 'EARdb';
+dbdir = '/Users/zeilon/Dropbox/Work/EARdb/'; % include final slash
 
 % project details
-dbname = 'FRES_PILOT';
-dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
+% dbname = 'FRES_PILOT';
+% dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
 
 datawind = [-100 1700]; % time window in seconds after event to [start end]
 
-phases = 'P,S,PKP,PKS,SKS';
+phases = 'P,PP,S,PKP,PKS,SKS';
 
 overwrite = false;
+
+startorid = 1;
+% time bounds for events to get - ignore before startdate, or after enddate
+startdate = '2010-00-01'; % format 'YYYY-MM-DD' 
+enddate   = '2011-09-01'; % format 'YYYY-MM-DD'
 
 resamprate = 10; % leave empty or zero to use existing samprate
 
@@ -39,9 +44,10 @@ getnoise = false;
 %% Preliminaries
 wd = pwd;
 addpath('matguts')
+% add java path. Have to be in that directory for some reason.
+cd('~/Dropbox/MATLAB/AttenBody/');javaaddpath('IRIS-WS-2.20.1.jar');
 cd(dbdir);
 run([dbdir,dbname,'_startup.m']);
-javaaddpath('IRIS-WS-2.0.15.jar')
 spd = 24*60*60; % seconds per day - to convert time in seconds to serial time
 
 % point to right data dir 
@@ -51,14 +57,16 @@ load([infodir,'/events'],'evinfo');
 % station details
 load([infodir,'/stations'],'stainfo');
 
-for ie = 1979:evinfo.norids % got to 3691 % 160-335 is Y6
+for ie = startorid:evinfo.norids % got to 3691 % 160-335 is Y6
     % sort out event stuff
     orid = evinfo.orids(ie);
     elat = evinfo.elats(ie); elon = evinfo.elons(ie); edep = evinfo.edeps(ie); 
     evtime = evinfo.evtimes(ie);
-    evdir = [num2str(orid,'%03d'),'_',evinfo.datestamp(ie,:)];
+    % ignore outside date bounds
+    if evtime < datenum(startdate) || evtime > datenum(enddate), continue; end
     
-    % make event directory
+    % name and, if needed, make event directory
+    evdir = [num2str(orid,'%03d'),'_',evinfo.datestamp(ie,:)];
     if exist([datadir,evdir],'dir')~=7, mkdir(datadir,evdir); end
     
     % datinfo

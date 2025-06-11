@@ -5,7 +5,7 @@ overwrite = true;
 
 % project details
 dbname = 'EARdb';
-dbdir = '/Users/zeilon/Work/EastAfrica/EARdb/'; % include final slash
+dbdir = '/Users/zeilon/Dropbox/Work/EARdb/'; % include final slash
 
 %% Preliminaries
 wd = pwd;
@@ -20,7 +20,7 @@ load([infodir,'/events'],'evinfo');
 % station details
 load([infodir,'/stations'],'stainfo');
 
-for ie = 610:evinfo.norids % 1:norids % loop on orids
+for ie = 3651%:evinfo.norids % 1:norids % loop on orids
     orid = evinfo.orids(ie);
     fprintf('\n Orid %.0f %s \n\n',orid,evinfo.evtimes_IRISstr{ie}(1:end-4))
     evdir = [num2str(orid,'%03d'),'_',char(evinfo.datestamp(ie,:)),'/'];

@@ -84,8 +84,8 @@ end
     
 
     %% some plots
-    if ifplot
-        figure(31),clf;set(gcf,'pos',[800 213 703 973])
+    % if ifplot
+        figure(31),clf;set(gcf,'pos',[400 213 703 973])
         for ixax = 1:5
             ax(ixax) = axes('Position',[0.1 1.01-(ixax*0.19) 0.85 0.16]);
             hold on;
@@ -117,7 +117,7 @@ end
         ylabel(ax(2),'dT-variation','fontsize',16)
         ylabel(ax(3),'log(A0)-variation','fontsize',16)
         ylabel(ax(4),{'Error-variation'; '(relative to mean)'},'fontsize',16)
-    end
+    % end
 
     %% station-wise metrics for possible focusing
  
@@ -152,7 +152,7 @@ end
         gdofgd = false(Nstas_dtstar,1);
     end
 
-
+    figh = plot_focustest_pretty(stas,Amat,phimat,fmids,wtmat,test_a2pwt,a2ptest_dtstar,a2ptest_A0,a2ptest_Eamp_stawise,a2ptest_Ephi_stawise,focusscore,focus_thresh);
 
 
 

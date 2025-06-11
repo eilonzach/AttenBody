@@ -1,7 +1,7 @@
 %% Script to add new events and stations to existing database 
 
 dbname = 'EARdb';
-dbpath = '~/Work/EastAfrica/';
+dbpath = '~/Dropbox/Work/EARdb/';
 overwriteall = false;
 
 %% Station parameters
@@ -27,7 +27,7 @@ addpath('matguts');
 % main database directory
 dbpath = regexprep(dbpath,'~',getenv('HOME'));
 if ~strcmp(dbpath(end),'/'),dbpath = [dbpath,'/']; end
-dbdir = [dbpath,dbname,'/'];
+dbdir = [dbpath];
 % info files directory 
 infodir = [dbdir,'INFO/'];
 % response files directory 
@@ -62,10 +62,10 @@ ienew_recent = ienew(datenum({events_IRIS_new(ienew).PreferredTime}')>max(evinfo
 fprintf('of which \n%.0f are more recent than anything in evinfo\n',length(ienew_recent))
 
 % query whether or not to add new events
-resp = input('Add in all (a), recent (r), or NO (anything else) new events? ','s');
-if strcmp(resp,'a')
+ans = input('Add in all (a), recent (r), or NO (anything else) new events? ','s');
+if strcmp(ans,'a')
     ieadd = ienew;
-elseif strcmp(resp,'r')
+elseif strcmp(ans,'r')
     ieadd = ienew_recent;
 else
     ieadd = [];
@@ -86,8 +86,8 @@ evinfo = struct('orids',[evinfo.orids; norids_current + [1:length(ieadd)]'],...
                 'datestamp',cat(1,evinfo.datestamp,datestr(datenum({events_IRIS_new(ieadd).PreferredTime}'),'yyyymmddHHMM')));          
 
 % decide to overwrite
-resp = input('Confirm (y) you want to overwrite and add these events? ','s');
-if strcmp(resp,'y')
+ans = input('Confirm (y) you want to overwrite and add these events? ','s');
+if strcmp(ans,'y')
     nupdates = length(events_request);
     events_IRIS = events_IRIS_new;       
     events_request(nupdates+1) = events_request_new;
@@ -130,7 +130,6 @@ stainfo_new = struct('stas',{{stations_IRIS_new.StationCode}'},...
                  'offdate_str',{{stations_IRIS_new.EndDate}'},...
                  'nstas',length(stations_IRIS_new));  
              
-[stainfo_new] = stainfo_unique(stainfo_new);
 
 % parse channels             
 chans = cell(stainfo_new.nstas,3);
@@ -160,6 +159,23 @@ stainfo_new.chans = chans;
 stainfo_new.chandips = chandips;
 stainfo_new.chanazs = chanazs;
 
+[stainfo_new] = stainfo_unique(stainfo_new);
+
+% Make plots
+figure(44),clf, hold on
+m_proj('lambert','lon',sta_lonlims,'lat',sta_latlims); 
+[CS,CH]=m_etopo2('contourf',[-5000:500:0 250:250:3000],'edgecolor','none');
+ m_grid('linestyle','none','tickdir','out','linewidth',3);
+m_coast('color',[0 .2 0],'linewidth',2.5);
+colormap([ m_colmap('blues',80); m_colmap('gland',48)]);
+brighten(.5);
+ax=m_contfbar(1,[.5 .8],CS,CH);
+m_plot(stainfo_new.slons,stainfo_new.slats,'or','markerfacecolor','r')
+m_plot(stainfo.slons,stainfo.slats,'ob','markerfacecolor','b')
+
+
+
+
 % concat new with existing, find all unique
 load([infodir,'/stations']);
 stafns = fieldnames(stainfo);
@@ -173,10 +189,12 @@ for iff = 1:length(stafns)
 end
 [stainfo] = stainfo_unique(stainfo);
 
+
+
                         
 % decide to overwrite
-resp = input('Confirm (y) you want to overwrite and add these stations? ','s');
-if strcmp(resp,'y')
+ans = input('Confirm (y) you want to overwrite and add these stations? ','s');
+if strcmp(ans,'y')
     nupdates = length(stations_request);
     stations_IRIS = stations_IRIS_new;       
     stations_request(nupdates+1) = stations_request_new;
@@ -187,6 +205,29 @@ if strcmp(resp,'y')
 end
 
 return
+%% Append new response files, update all reasponse files
+load([infodir,'/stations'],'stainfo');
+
+% grab responses from IRIS
+stations_IRIS_r = irisFetch.Stations('RESPONSE','*','*','*',sta_chans,...
+                            'MinimumLatitude',sta_latlims(1),...
+                            'MaximumLatitude',sta_latlims(2),...
+                            'MinimumLongitude',sta_lonlims(1),...
+                            'MaximumLongitude',sta_lonlims(2));
+
+
+[stainfo] = stainfo_extractfromIRIS_resp(stations_IRIS_r,stainfo)
+
+% decide to overwrite
+ans = input('Confirm (y) you want to overwrite and add these responses? ','s');
+if strcmp(ans,'y')
+    % just in case, save old one
+    copyfile([infodir,'/stations.mat'],[infodir,'/stations_noresp.mat']);
+    % save new one
+    save([infodir,'/stations'],'stainfo','-append');
+end
+
+return 
 
 %% Response SAC_PZ files
 % Build and send BREQFAST request file for dataless seed                     
