@@ -7,13 +7,14 @@ clear all
 % % end
 
 % % project details
-% dbname = 'EARdb';
+dbname = 'EARdb';
 % % dbdir = '/Volumes/Lacie/Granite_EastAfrica/EARdb/'; % include final slash
-% dbdir = '/Users/zeilon/Dropbox/Work/EARdb/'; % include final slash
+dbdir = '/Users/zeilon/Dropbox/Work/EARdb/'; % include final slash
 
 % project details
-dbname = 'FRES_PILOT';
-dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
+% dbname = 'FRES_PILOT';
+% dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
+
 %% Preliminaries
 wd = pwd;
 addpath('matguts')

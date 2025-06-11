@@ -13,8 +13,8 @@
 close all
 
 %% parameters
-phase = 'SKS'; % P, S, SKS
-component = 'R'; %'Z', 'T', or 'R'
+phase = 'S'; % available are 'P,PP,S,PKP,PKS,SKS';
+component = 'T'; %'Z', 'T', or 'R'
 resamprate = 10 ; % new, common sample rate
 filtfs = 1./[40 .5]; % [flo fhi] = 1./[Tmax Tmin] in sec
 taperx = 0.2;
@@ -26,29 +26,39 @@ snrmin = 3;
 mavwind = 5; % length of moving average to smooth spectrum (1 for no smoothing)
 lofrq = 0.05; % uppermost freq to fit (Hz)
 % hifrq = 1; % uppermost freq to fit (Hz)
-firstev = 815; % SKS got to 1044; S got to 1287; % need to do 160-335 again on all
 
 overwrite = false;
 ifplot    = false;
 ifsave    = true;
 
 % % project details
-% dbname = 'EARdb';
-% dbdir = '/Users/zeilon/Work/EastAfrica/EARdb/'; % include final slash
+dbname = 'EARdb';
+dbdir = '/Users/zeilon/Dropbox/Work/EARdb/'; % include final slash
 
 % project details
-dbname = 'FRES_PILOT';
-dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
+% dbname = 'FRES_PILOT';
+% dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
 
+%% EVT limits
+firstev = 900; 
+% time bounds for events to consider - ignore before startdate, or after enddate
+startdate = '2014-03-01'; % format 'YYYY-MM-DD' % FOR EARdb new stations
+% startdate = '1000-01-01'; % format 'YYYY-MM-DD' % for all
+enddate   = '2025-01-01'; % format 'YYYY-MM-DD'
+% magnitude bounds for events to consider - INCLUDE the limiting values
+minmag = 6.2; % in Mw, set to 5 for all
+maxmag = 7.2; % in Mw, set to 9 for all
+% NOTE!! Also distance bounds for every phase, defined in the 
+% "GRAB DATA IN RIGHT FORMAT" section below
 
 
 % SNR for spectra
-if strcmp(phase(1),'P')
+if strcmp(phase(end),'P')
     spec_snr_hi = snrmin; % min SNR for specss/specns sweeping up
     spec_snr_lo = snrmin/2; % min SNR for specss/specns sweeping down
     fsweephi = 0.5; % Hz to start sweeping up looking for crossing
     fsweeplo = 0.2; % Hz to start sweeping down looking for crossing
-elseif strcmp(phase(1),'S')
+elseif strcmp(phase(end),'S')
     spec_snr_hi = 1.5; % min SNR for specss/specns sweeping up
     spec_snr_lo = 1.5; % min SNR for specss/specns sweeping down
     fsweephi = 0.17; % Hz to start sweeping up looking for crossing
@@ -82,7 +92,14 @@ for ie = firstev:evinfo.norids %norids % loop on orids
     evdir = [num2str(orid,'%03d'),'_',evinfo.datestamp(ie,:),'/'];
     datinfofile = [data_eqar_dir,evdir,'_datinfo_',phase];
     arfile      = [data_eqar_dir,evdir,'_EQAR_',phase,'_',component];
-      
+
+    % ignore outside date or magnitude bounds
+    if  evinfo.evtimes(ie) < datenum(startdate) || evinfo.evtimes(ie) > datenum(enddate) ...
+     || evinfo.evmags(ie) < minmag || evinfo.evmags(ie) > maxmag
+        continue; 
+    end
+
+
     % check files exist
     if ~exist([datinfofile,'.mat'],'file'), fprintf('No station mat files for this event\n');continue, end
     if ~exist([arfile,'.mat'],'file'), fprintf('No arfile for this event + phase\n');continue, end
@@ -126,6 +143,13 @@ for ie = firstev:evinfo.norids %norids % loop on orids
         att = (eqar(is).tt-eqar(is).abs_arrT)*spd; % shift to seconds since absolute arrival
         att = round(att,3);
         ja = (att >= datwind(1)) & (att < datwind(2)); % excerpt times according to datwind
+
+        % account for idiotic sample time...
+        if sum(ja) ~= resamprate*diff(datwind)
+            att = round(att,2);
+            ja = (att >= datwind(1)) & (att < datwind(2)); % excerpt times according to datwinde
+        end
+
         
         % GRAB DESIRED COMPONENT
         switch component

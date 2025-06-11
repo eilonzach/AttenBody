@@ -14,17 +14,15 @@ close all
 % dbdir = '/Users/zeilon/Work/AKTA_Cristhian/AKTAdb/'; % include final slash
 
 % % project details
-% dbname = 'EARdb';
-% dbdir = '/Users/zeilon/Dropbox/Work/EARdb/'; % include final slash
+dbname = 'EARdb';
+dbdir = '/Users/zeilon/Dropbox/Work/EARdb/'; % include final slash
 
 % project details
-dbname = 'FRES_PILOT';
-dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
+% dbname = 'FRES_PILOT';
+% dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
 
 
 %% parameters
-phase = 'SKS';
-component = ['R']; %'Z', 'R', or 'T'
 phase = 'P';
 component = ['Z']; %'Z', 'R', or 'T'
 
@@ -209,6 +207,7 @@ for ie = firstev:evinfo.norids %evinfo.norids % 335:norids % loop on orids
         att = round(att,4);
         % shift so arrival is at time=0
         ja = (att >= datwind(1)) & (att < datwind(2)); % excerpt times according to datwind
+
         
         % GRAB DESIRED COMPONENT
         switch component

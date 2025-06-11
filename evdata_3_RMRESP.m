@@ -20,17 +20,20 @@
 clear 
 
 resp_opt = 'fetchPZ'; % 'fetchPZ' or 'SACPZ'
-overwrite = true;
+overwrite = false;
 ifplot = 0; 
-startorid = 1151;
+startorid = 332;
+% time bounds for events to get - ignore before startdate, or after enddate
+startdate = '2014-01-01'; % format 'YYYY-MM-DD' 
+enddate   = '2017-01-01'; % format 'YYYY-MM-DD'
 
 % % project details
-% dbname = 'EARdb';
-% dbdir = '/Volumes/Lacie/Granite_EastAfrica/EARdb/'; % include final slash
+dbname = 'EARdb';
+dbdir = '/Users/zeilon/Dropbox/Work/EARdb/'; % include final slash
 
 % project details
-dbname = 'FRES_PILOT';
-dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
+% dbname = 'FRES_PILOT';
+% dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
 
 
 %% Preliminaries
@@ -49,6 +52,10 @@ load([infodir,'/stations'],'stainfo');
 
 for ie = startorid:evinfo.norids %  loop on orids
     orid = evinfo.orids(ie);
+
+    % ignore outside date bounds
+    if evinfo.evtimes(ie) < datenum(startdate) || evinfo.evtimes(ie) > datenum(enddate), continue; end
+
     fprintf('\n Orid %.0f %s \n\n',orid,evinfo.evtimes_IRISstr{ie}(1:end-4))
     evdir = [num2str(orid,'%03d'),'_',char(evinfo.datestamp(ie,:)),'/'];
     datinfofile = [datadir,evdir,'_datinfo'];
@@ -60,7 +67,7 @@ for ie = startorid:evinfo.norids %  loop on orids
 
     for is = 1:length(datinfo) % loop on stas
         sta = datinfo(is).sta; % sta name
-        fprintf('Station %.0f %-5s...',is,sta)
+        fprintf('Station %3.0f %2s-%-5s...',is,datinfo(is).nwk,sta)
         if datinfo(is).rmresp && ~overwrite % skip if already removed response
             fprintf(' done already\n'), continue, 
         end 
@@ -156,7 +163,8 @@ for ie = startorid:evinfo.norids %  loop on orids
                     % now find correct time
                     ires = (evinfo.evtimes(ie) > [responses.StartDate_ser]) & ...
                            (evinfo.evtimes(ie) < [responses.EndDate_ser]);
-                    if ~any(ires), fprintf('NO RESP'), continue; end
+                    if ~any(ires), fprintf('NO RESP'), 
+                        continue; end
                     
                     response = responses(ires);
                     gain = response.Gain;

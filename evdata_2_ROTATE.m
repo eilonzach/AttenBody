@@ -10,16 +10,19 @@
 clear 
 
 
-overwrite = true;
-startorid = 1307;
+% overwrite = false;
+startorid = 332;
+% time bounds for events to get - ignore before startdate, or after enddate
+startdate = '2014-01-01'; % format 'YYYY-MM-DD' 
+enddate   = '2017-01-01'; % format 'YYYY-MM-DD'
 
 % % project details
-% dbname = 'EARdb';
-% dbdir = '/Users/zeilon/Work/EastAfrica/EARdb/'; % include final slash
+dbname = 'EARdb';
+dbdir = '/Users/zeilon/Dropbox/Work/EARdb/'; % include final slash
 
 % project details
-dbname = 'FRES_PILOT';
-dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
+% dbname = 'FRES_PILOT';
+% dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
 
 
 %% Preliminaries
@@ -41,6 +44,11 @@ load([infodir,'/stations'],'stainfo');
 for ie = startorid:evinfo.norids %evinfo.norids % loop on orids
     orid = evinfo.orids(ie);
     fprintf('\n Orid %.0f %s \n\n',orid,evinfo.evtimes_IRISstr{ie}(1:end-4))
+
+    % ignore outside date bounds
+    if evinfo.evtimes(ie) < datenum(startdate) || evinfo.evtimes(ie) > datenum(enddate), continue; end
+
+    
     evdir = [num2str(orid,'%03d'),'_',char(evinfo.datestamp(ie,:)),'/'];
     datinfofile = [datadir,evdir,'_datinfo'];
 

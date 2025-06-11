@@ -25,12 +25,12 @@
 clear
 
 % % project details
-% dbname = 'EARdb';
-% dbdir = '/Users/zeilon/Work/EastAfrica/EARdb/'; % include final slash
+dbname = 'EARdb';
+dbdir = '/Users/zeilon/Dropbox/Work/EARdb/'; % include final slash
 
 % project details
-dbname = 'FRES_PILOT';
-dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
+% dbname = 'FRES_PILOT';
+% dbdir = '~/Dropbox/Work/FRES_PILOT/'; % include final slash
 
 
 %% parameters
@@ -66,8 +66,13 @@ cheatsheetphases = {'P','S','PP','SKS','PKS','SKKS'};
 
 %% Progress notes
 % FRESPILOT -  S(T) got to 1863. P(Z) got to 1920. SKS(R) got to 1847
-% EARdb (I think outdated) SKS got to 1044; S got to 1287; % need to do 160-335 again on all
-firstev = 1847; 
+
+% EARdb_newpass_2024-02-14 finished P(Z). 
+% EARdb_newpass_2024-02-21 finished PP(Z). 
+% EARdb_newpass_2024-02-28 finished S(T). 
+% EARdb_newpass_2024-02-28 finished PKS(R). 
+% EARdb_newpass_2024-02-28 finished SKS(Z). 
+% grabbed for most stations
 
 %% EVT limits
 firstev = 1; 
@@ -85,6 +90,7 @@ maxmag = 7.2; % in Mw, set to 9 for all
 % their data in the record section and xcorr
 % manualkillstas = {'C05E'};
 manualkillstas = {''};
+
 
 
 %% Preliminaries
@@ -114,10 +120,10 @@ load([infodir,'/stations'],'stainfo');
 % some default parameters
 SNRdisp = false;
 phasedisp = false;
+
 ie = firstev; % up to 364
 ied = 1; %incrementer - leave as 1
 while 1 %evinfo.norids % loop on orids 
-%     if  mags(ie)<6.9, continue, end
     tic
     close all, clear('x1','x2');
     if ie > evinfo.norids, error('ALL DONE!\n'); end
@@ -268,6 +274,9 @@ while 1 %evinfo.norids % loop on orids
         %make axes for plotting
         ax1 = axes(figxc,'pos',[0.05 0.07 0.3 0.85]); hold on
         cols = {'b','k'};
+
+        % plot on the traces
+        clear htr
         for ig = 1:length(indgd)
             is = indgd(ig);
             colr = cols{isodd(ig)+1};
